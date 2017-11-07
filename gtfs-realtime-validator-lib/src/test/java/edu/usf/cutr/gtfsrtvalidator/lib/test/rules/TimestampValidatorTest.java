@@ -1026,6 +1026,107 @@ public class TimestampValidatorTest extends FeedMessageTest {
     }
 
     /**
+     * E050 - timestamp is in the future
+     */
+    @Test
+    public void testE050() {
+        TimestampValidator timestampValidator = new TimestampValidator();
+        Map<ValidationRule, Integer> expected = new HashMap<>();
+        GtfsRealtime.TripDescriptor.Builder tripDescriptorBuilder = GtfsRealtime.TripDescriptor.newBuilder();
+
+        // "Current time" in milliseconds for test
+        final long CURRENT_MILLIS = TimeUnit.SECONDS.toMillis(MIN_POSIX_TIME + 100);
+
+        // TODO:
+        //fix time calculation for print out in rule - print out doesn't seem right
+        //"vehicle_id  timestamp 19:01:45 (1104537705) is 0 min 5 sec greater than current time 23:46:40 (1104537700000) , which is the current time"
+
+
+        // Good timestamp (seconds) - 50 seconds behind "current time"
+        final long RECENT = TimeUnit.MILLISECONDS.toSeconds(CURRENT_MILLIS) - 50;
+        // Good timestamp (seconds) - in the future by 59 seconds, but still within the 59 second tolerance, so shouldn't log error
+        final long FUTURE_59_SEC = TimeUnit.MILLISECONDS.toSeconds(CURRENT_MILLIS) + 59;
+        // Bad future timestamp (SECONDS) - 60 seconds in the future
+        final long FUTURE_60_SEC = TimeUnit.MILLISECONDS.toSeconds(CURRENT_MILLIS) + 60;
+
+        /**
+         * All timestamps are in the past - no errors
+         */
+        feedHeaderBuilder.setTimestamp(RECENT);
+        feedMessageBuilder.setHeader(feedHeaderBuilder.build());
+
+        tripUpdateBuilder.setTimestamp(RECENT);
+        tripUpdateBuilder.setTrip(tripDescriptorBuilder.build());
+        feedEntityBuilder.setTripUpdate(tripUpdateBuilder);
+
+        vehiclePositionBuilder.setTimestamp(RECENT);
+        feedEntityBuilder.setVehicle(vehiclePositionBuilder.build());
+
+        feedMessageBuilder.setEntity(0, feedEntityBuilder.build());
+
+        results = timestampValidator.validate(CURRENT_MILLIS, gtfsData, gtfsDataMetadata, feedMessageBuilder.build(), null, null);
+        expected.clear();
+        TestUtils.assertResults(expected, results);
+
+        /**
+         * All timestamps are in the future, but only by 4 seconds (within the tolerance) - no errors
+         */
+        feedHeaderBuilder.setTimestamp(FUTURE_59_SEC);
+        feedMessageBuilder.setHeader(feedHeaderBuilder.build());
+
+        tripUpdateBuilder.setTimestamp(FUTURE_59_SEC);
+        tripUpdateBuilder.setTrip(tripDescriptorBuilder.build());
+        feedEntityBuilder.setTripUpdate(tripUpdateBuilder);
+
+        vehiclePositionBuilder.setTimestamp(FUTURE_59_SEC);
+        feedEntityBuilder.setVehicle(vehiclePositionBuilder.build());
+
+        feedMessageBuilder.setEntity(0, feedEntityBuilder.build());
+
+        results = timestampValidator.validate(CURRENT_MILLIS, gtfsData, gtfsDataMetadata, feedMessageBuilder.build(), null, null);
+        expected.clear();
+        TestUtils.assertResults(expected, results);
+
+        /**
+         * Header timestamp is 5 seconds in future - one error
+         */
+        feedHeaderBuilder.setTimestamp(FUTURE_60_SEC);
+        feedMessageBuilder.setHeader(feedHeaderBuilder.build());
+        feedMessageBuilder.setEntity(0, feedEntityBuilder.build());
+
+        results = timestampValidator.validate(CURRENT_MILLIS, gtfsData, gtfsDataMetadata, feedMessageBuilder.build(), null, null);
+        expected.put(E050, 1);
+        TestUtils.assertResults(expected, results);
+
+        /**
+         * Header and TripUpdate are 5 seconds in future- 2 errors
+         */
+        tripUpdateBuilder.setTimestamp(FUTURE_60_SEC);
+        tripUpdateBuilder.setTrip(tripDescriptorBuilder.build());
+        feedEntityBuilder.setTripUpdate(tripUpdateBuilder);
+
+        feedMessageBuilder.setEntity(0, feedEntityBuilder.build());
+
+        results = timestampValidator.validate(CURRENT_MILLIS, gtfsData, gtfsDataMetadata, feedMessageBuilder.build(), null, null);
+        expected.put(E050, 2);
+        TestUtils.assertResults(expected, results);
+
+        /**
+         * Header, TripUpdate, and VehiclePosition are 5 seconds in future - 3 errors
+         */
+        vehiclePositionBuilder.setTimestamp(FUTURE_60_SEC);
+        feedEntityBuilder.setVehicle(vehiclePositionBuilder.build());
+
+        feedMessageBuilder.setEntity(0, feedEntityBuilder.build());
+
+        results = timestampValidator.validate(CURRENT_MILLIS, gtfsData, gtfsDataMetadata, feedMessageBuilder.build(), null, null);
+        expected.put(E050, 3);
+        TestUtils.assertResults(expected, results);
+
+        clearAndInitRequiredFeedFields();
+    }
+
+    /**
      * Make sure we throw an exception if current and previous message are the same.  Some rules like E017 and E018
      * require that the feed content for the current and previous iterations passed into the validate() method are different.
      */

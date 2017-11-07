@@ -816,8 +816,14 @@ public class UtilTest {
     }
 
     @Test
+    public void testCheckInFuture() {
+        // TODO - add assertions for:
+        //TimestampUtils.checkInFuture(currentTimeMillis, vehicleTimestamp, IN_FUTURE_TOLERANCE_SECONDS);
+    }
+
+    @Test
     public void testGetAllRules() {
         List<ValidationRule> rules = ValidationRules.getRules();
-        assertEquals(58, rules.size());
+        assertEquals(59, rules.size());
     }
 }
